@@ -13,7 +13,7 @@ npm run build
 npm start
 ```
 
-`setup` crea `.env.local` sin sobreescribir configuraciones previas y genera una clave aleatoria. Muestra la URL del PC y la clave: en el iPhone, conectado a la misma Wi-Fi, abre esa URL en Safari. En **Ajustes → Ollama**, introduce la clave y pulsa **Comprobar conexión**. Abre Ollama en el PC y selecciona `qwen3:4b` (preferido) o `qwen3:8b`.
+`setup` crea `.env.local` sin sobreescribir configuraciones previas, incluye la URL y clave pública de Supabase y genera una clave local aleatoria. Puedes añadir `-- --exclude=ALÉRGENO` al comando para imponer una exclusión privada en el servidor; consulta `shared/safety.js` para los nombres admitidos. Muestra la URL del PC y la clave: en el iPhone, conectado a la misma Wi-Fi, abre esa URL en Safari. En **Ajustes → Ollama**, introduce la clave y pulsa **Comprobar conexión**. Abre Ollama en el PC y selecciona `qwen3:4b` (preferido) o `qwen3:8b`.
 
 Si Windows pregunta por el firewall, permite Node solo en redes privadas. El PC debe seguir encendido. **No abras puertos del router ni expongas Ollama a Internet**. Ollama sigue escuchando en localhost; solo Koomida escucha en la LAN. La conexión LAN de esta versión usa HTTP: úsala exclusivamente en una red de confianza; para publicación o redes no confiables, requiere HTTPS y autenticación adicional. No es todavía una PWA sin conexión.
 
@@ -21,10 +21,9 @@ Sin Supabase, la app funciona como **demo local**, con datos de prueba persistid
 
 ## Conectar Supabase
 
-1. Crea un proyecto en tu organización y ejecuta el SQL de `supabase/migrations/` en el editor SQL (una sola vez), o aplícalo con la CLI.
-2. Completa `.env.local` con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`. Usa únicamente la clave **publishable**, nunca una clave secret/service_role. No subas `.env.local` a Git.
-3. En Supabase Auth activa email/contraseña. Para la verificación por correo, configura la Site URL con la URL del PC a la que accederás. La entrega de correo depende del proveedor de email de tu proyecto.
-4. Ejecuta de nuevo `npm run build` y `npm start`. Crea una cuenta, confirma el correo e inicia sesión. La despensa real empieza vacía.
+El proyecto en J.org (París) ya tiene las migraciones aplicadas. `setup` copia su URL y su clave **publishable** a `.env.local`. Esa clave es pública por diseño; las contraseñas de base de datos y claves secret/service_role no forman parte de la app ni del repositorio. No subas `.env.local` a Git.
+
+Supabase Auth usa correo/contraseña y exige confirmar la cuenta por correo. La Site URL está configurada como `http://localhost:8787`: abre el enlace de confirmación en el PC donde se ejecuta Koomida, y luego inicia sesión desde el PC o iPhone. Si abres ese enlace en el iPhone, `localhost` apunta al teléfono y no abrirá Koomida; vuelve a la URL del PC tras confirmar. La entrega del correo depende del proveedor de email de Supabase; para uso más amplio necesitarás configurar SMTP y una URL HTTPS estable. La despensa real empieza vacía.
 
 Cada cuenta tiene su propia despensa y favoritos, protegidos con RLS. No hay invitaciones ni hogares compartidos en este MVP. Puedes fijar exclusiones para todo el hogar con `npm run setup -- --exclude=ALERGENO` al crear la configuración. Se guardan en `.env.local`, no en Git. El servidor las impone aunque un cliente omita sus filtros. Si editas la configuración, mantén iguales `HOUSEHOLD_EXCLUDED_ALLERGENS` y `VITE_HOUSEHOLD_EXCLUDED_ALLERGENS` y recompila. Los filtros adicionales de la interfaz son locales a cada navegador. No se almacenan historiales clínicos.
 
