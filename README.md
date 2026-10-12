@@ -15,9 +15,9 @@ npm start
 
 `setup` crea `.env.local` sin sobreescribir configuraciones previas, incluye la URL y clave pública de Supabase y genera una clave local aleatoria. Puedes añadir `-- --exclude=ALÉRGENO` al comando para imponer una exclusión privada en el servidor; consulta `shared/safety.js` para los nombres admitidos. Muestra la URL del PC y la clave: en el iPhone, conectado a la misma Wi-Fi, abre esa URL en Safari. En **Ajustes → Ollama**, introduce la clave, pulsa **Guardar clave local** y después **Comprobar conexión**. Abre Ollama en el PC y selecciona `qwen3:4b` (preferido) o `qwen3:8b`.
 
-Si Windows pregunta por el firewall, permite Node solo en redes privadas. El PC debe seguir encendido. **No abras puertos del router ni expongas Ollama a Internet**. Ollama sigue escuchando en localhost; solo Koomida escucha en la LAN. La conexión LAN de esta versión usa HTTP: úsala exclusivamente en una red de confianza; para publicación o redes no confiables, requiere HTTPS y autenticación adicional. No es todavía una PWA sin conexión.
+Si Windows pregunta por el firewall, permite Node solo en redes privadas. El PC debe seguir encendido. **No abras puertos del router ni expongas Ollama a Internet**. Ollama sigue escuchando en localhost; solo Koomida escucha en la LAN. La conexión LAN de esta versión usa HTTP: úsala exclusivamente en una red de confianza; para publicación o redes no confiables, requiere HTTPS. No es todavía una PWA sin conexión.
 
-Sin Supabase, la app funciona como **demo local**, con datos de prueba persistidos en ese navegador. PC e iPhone tendrán demos independientes. La demo y una cuenta real no mezclan datos.
+Sin iniciar sesión se muestra un recetario público. Despensa, favoritos, ajustes y recomendaciones requieren una cuenta. Sin configurar Supabase solo está disponible el recetario; no existe acceso alternativo mediante demo.
 
 ## Conectar Supabase
 
@@ -25,7 +25,17 @@ El proyecto en J.org (París) ya tiene las migraciones aplicadas. `setup` copia 
 
 Supabase Auth usa correo/contraseña y exige confirmar la cuenta por correo. La Site URL está configurada como `http://localhost:8787`: abre el enlace de confirmación en el PC donde se ejecuta Koomida, y luego inicia sesión desde el PC o iPhone. Si abres ese enlace en el iPhone, `localhost` apunta al teléfono y no abrirá Koomida; vuelve a la URL del PC tras confirmar. La entrega del correo depende del proveedor de email de Supabase; para uso más amplio necesitarás configurar SMTP y una URL HTTPS estable. La despensa real empieza vacía.
 
-Cada cuenta tiene su propia despensa y favoritos, protegidos con RLS. No hay invitaciones ni hogares compartidos en este MVP. Puedes fijar exclusiones para todo el hogar con `npm run setup -- --exclude=ALERGENO` al crear la configuración. Se guardan en `.env.local`, no en Git. El servidor las impone aunque un cliente omita sus filtros. Si editas la configuración, mantén iguales `HOUSEHOLD_EXCLUDED_ALLERGENS` y `VITE_HOUSEHOLD_EXCLUDED_ALLERGENS` y recompila. Los filtros adicionales de la interfaz son locales a cada navegador. No se almacenan historiales clínicos.
+Cada cuenta tiene su propia despensa y favoritos, protegidos con RLS. No hay invitaciones ni hogares compartidos en este MVP. Puedes fijar exclusiones para todo el hogar con `npm run setup -- --exclude=ALERGENO` al crear la configuración. Se guardan en `.env.local`, no en Git. El servidor las impone aunque un cliente omita sus filtros. Si editas la configuración, mantén iguales `HOUSEHOLD_EXCLUDED_ALLERGENS` y `VITE_HOUSEHOLD_EXCLUDED_ALLERGENS` y recompila. Los filtros adicionales de la interfaz se guardan por cuenta en cada navegador; no se reutilizan al cambiar de usuario. No se almacenan historiales clínicos.
+
+## Acceso y seguridad
+
+- Supabase Auth almacena hashes bcrypt de contraseñas y emite tokens JWT con renovación. No guardamos contraseñas en el navegador ni en tablas públicas. El formulario de registro y cambio exige 12 caracteres; la política global de Auth se administra en Supabase.
+- La sesión se conserva en `sessionStorage` durante la sesión del navegador. Al restaurarla se comprueba el usuario con Auth. Cerrar sesión oculta y desmonta la cocina, cancela la consulta activa y elimina la clave local de esa sesión.
+- La API local exige un Bearer token validado por Supabase Auth, además de la clave de emparejamiento del PC. Sin configurar Auth falla cerrada. Un JWT manipulado o caducado no permite llamar a Ollama.
+- RLS limita despensa y favoritos al propietario, también al editar o borrar y al descontar ingredientes. Ocultar botones no sustituye estas reglas. No se ha desplegado ningún endpoint administrativo.
+- En Ajustes → Tu cuenta puedes cambiar la contraseña comprobando la anterior. Se revocan las renovaciones de las otras sesiones; los JWT ya emitidos pueden seguir siendo válidos hasta su caducidad.
+- La cuenta temporal se provisiona fuera del código y sus datos se cargan solo en su despensa privada. Ni credenciales ni inventario personal se incluyen en Git. Su dirección es un identificador de prueba sin buzón, por lo que no admite recuperación por correo.
+- **Límite del entorno local:** la app servida por IP de la LAN usa HTTP. Auth y la base de datos usan HTTPS, pero los tokens enviados al puente local viajan por esa LAN. Para usar cuentas fuera de una red privada de confianza o publicar la app hay que servir también Koomida por HTTPS. Estos cambios no convierten HTTP en un transporte cifrado.
 
 ## Qué hace
 
@@ -53,8 +63,8 @@ npm test       # UI con jsdom, dominio, API con Ollama simulado y SQL con PGlite
 npm run build  # producción en dist/
 ```
 
-`src/`: interfaz, catálogo y adaptadores demo/Supabase. `shared/`: reglas de inventario, alérgenos e identificadores. `server/`: servidor Node y puente a Ollama. `supabase/migrations/`: tablas y permisos. No hay frameworks de backend adicionales.
+`src/`: interfaz, catálogo y adaptador Supabase. El adaptador demo solo se conserva como doble de pruebas, sin ruta de acceso en la app. `shared/`: reglas de inventario, alérgenos e identificadores. `server/`: servidor Node y puente a Ollama. `supabase/migrations/`: tablas y permisos. No hay frameworks de backend adicionales.
 
 La IA tiene un máximo de 90 s de espera, una solicitud simultánea y 12 intentos por hora por proceso. Qwen usa `think:false`, contexto de 4096 tokens y hasta 220 tokens para interpretar y 1600 para generar. No se descarga ni cambia ningún modelo automáticamente. Los límites se reinician al reiniciar el servidor: son protección doméstica, no una solución de servicio público.
 
-La CI ejecuta pruebas y build, sin credenciales. La suite SQL comprueba aislamiento entre cuentas, rechazo de acceso anónimo, descuento y rollback. La suite API verifica filtros y validación de propuestas generadas con dobles de prueba, no con tu Ollama real. La velocidad real y Safari/iPhone requieren validación en tu PC. No se han ejecutado pruebas visuales en un navegador real en este entorno.
+La CI ejecuta pruebas y build, sin credenciales. La suite SQL comprueba aislamiento entre cuentas, rechazo de acceso anónimo, descuento y rollback. La suite API verifica filtros y validación de propuestas generadas con dobles de prueba, no con tu Ollama real. La velocidad real y Safari/iPhone requieren validación en tu PC. Las pruebas de interfaz cubren también portada pública, login, logout, sesión rechazada, cambio de cuenta y contraseña. Se ha verificado el login real y la lectura/escritura de la cuenta temporal contra Supabase. La instalación de Chromium falló en este entorno; no se ha completado una comprobación visual ni una prueba en Safari/iPhone.

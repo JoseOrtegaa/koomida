@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { demoPantry } from '../data/recipes.js';
 import { validItem, deductionPreview } from '../../shared/domain.js';
 const url=import.meta.env.VITE_SUPABASE_URL,key=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-export const supabase=url&&key?createClient(url,key):null;
+export const supabase=url&&key?createClient(url,key,{auth:{storage:typeof window==='undefined'?undefined:window.sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
 const DEMO_KEY='koomida-demo-v1';
 const blank=()=>({pantry:demoPantry(),favorites:[],saved:[]});
 export function readDemo() {

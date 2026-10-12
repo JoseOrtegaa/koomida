@@ -5,7 +5,7 @@ import {createApp} from '../server/app.mjs';
 import {demoPantry} from '../src/data/recipes.js';
 import {snackIntent,snackRecipe,meatIntent,meatRecipe} from './aiFixtures.js';
 const servers=[];
-async function start(fetchImpl,opts={}){const server=createApp({fetchImpl,...opts});server.listen(0,'127.0.0.1');await once(server,'listening');servers.push(server);return `http://127.0.0.1:${server.address().port}`;}
+async function start(fetchImpl,opts={}){const server=createApp({fetchImpl,authenticate:async token=>token==='valid-test-token'?{id:'test-user'}:null,...opts});server.listen(0,'127.0.0.1');await once(server,'listening');servers.push(server);return `http://127.0.0.1:${server.address().port}`;}
 afterEach(async()=>{await Promise.all(servers.splice(0).map(s=>new Promise(r=>{s.closeAllConnections();s.close(r);})))});
 const body={model:'qwen3:4b',pantry:demoPantry(),preferences:'quiero un scnack de chocolate y frambuesa',excluded:[]};
 function fake(intent=snackIntent,values=[{recipes:[snackRecipe]}]){let generation=0;return vi.fn(async(url,options)=>{
@@ -14,8 +14,18 @@ function fake(intent=snackIntent,values=[{recipes:[snackRecipe]}]){let generatio
  else {const request=JSON.parse(options.body);const value=request.format.required.includes('meal_type')?intent:values[Math.min(generation++,values.length-1)];data={message:{content:typeof value==='string'?value:JSON.stringify(value)}};}
  return new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
 });}
-const post=(url,data=body,headers={})=>fetch(`${url}/api/recipes`,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(data)});
+const post=(url,data=body,headers={})=>fetch(`${url}/api/recipes`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer valid-test-token',...headers},body:JSON.stringify(data)});
 describe('local Ollama generation',()=>{
+ it('rejects missing, forged and expired tokens before calling Ollama',async()=>{
+  const mock=fake(),url=await start(mock);
+  for(const authorization of ['', 'Bearer forged', 'Bearer expired'])expect((await post(url,body,{Authorization:authorization})).status).toBe(401);
+  expect(mock).not.toHaveBeenCalled();
+ });
+ it('fails closed without an authentication provider',async()=>{
+  const mock=fake(),url=await start(mock,{authenticate:async()=>null});
+  expect((await post(url)).status).toBe(401);expect(mock).not.toHaveBeenCalled();
+ });
+
  it('generates a new chocolate and raspberry snack despite both being absent from pantry',async()=>{
   const mock=fake();const response=await post(await start(mock));expect(response.status).toBe(200);const result=await response.json();
   expect(result.selection).toBe('ollama-generated');expect(result.recipes[0]).toMatchObject({...snackRecipe,source:'ai',reviewVersion:null});expect(result.recipes[0].id).toMatch(/^ai-/);
@@ -54,5 +64,5 @@ describe('local Ollama generation',()=>{
  it('does not permit arbitrary models or remote Ollama endpoints',async()=>{const url=await start(fake());expect((await post(url,{...body,model:'remote:cloud'})).status).toBe(400);expect(()=>createApp({ollamaUrl:'https://example.com'})).toThrow();});
  it('requires a strong pairing key for LAN and rejects cross-origin calls',async()=>{expect(()=>createApp({host:'0.0.0.0'})).toThrow();const url=await start(fake(),{host:'0.0.0.0',localKey:'test-only-long-pairing-key'});expect((await post(url)).status).toBe(401);expect((await post(url,body,{'X-Koomida-Key':'test-only-long-pairing-key','Origin':'https://attacker.example'})).status).toBe(403);expect((await post(url,body,{'X-Koomida-Key':'test-only-long-pairing-key','Origin':url})).status).toBe(200);});
  it('limits repeated requests and requires a request or available pantry',async()=>{const url=await start(fake(),{limit:1});expect((await post(url,{...body,pantry:[],preferences:''})).status).toBe(400);expect((await post(url)).status).toBe(200);expect((await post(url)).status).toBe(429);});
- it('fails clearly when Ollama is down',async()=>{const url=await start(async()=>{throw new Error('offline')});expect((await fetch(`${url}/api/health`)).status).toBe(503);});
+ it('fails clearly when Ollama is down',async()=>{const url=await start(async()=>{throw new Error('offline')});expect((await fetch(`${url}/api/health`,{headers:{Authorization:'Bearer valid-test-token'}})).status).toBe(503);});
 });

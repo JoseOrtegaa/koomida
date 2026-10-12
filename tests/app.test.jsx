@@ -5,6 +5,11 @@ import userEvent from '@testing-library/user-event';
 import {snackIntent,snackRecipe,meatIntent,meatRecipe} from './aiFixtures.js';
 import {recipes} from '../src/data/recipes.js';
 import App from '../src/App.jsx';
+vi.mock('../src/lib/store.js',async importOriginal=>{
+ const actual=await importOriginal();
+ const session={user:{id:'test-user',email:'test@example.invalid'},access_token:'valid-test-token'};
+ return {...actual,cloudStore:()=>actual.demoStore(),supabase:{auth:{getSession:async()=>({data:{session}}),getUser:async()=>({data:{user:session.user}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}}};
+});
 const go=async(user,name)=>user.click(within(screen.getByRole('navigation',{name:'Principal'})).getByRole('button',{name:new RegExp(name)}));
 describe('Koomida user flows',()=>{
  afterEach(()=>vi.unstubAllGlobals());
@@ -31,7 +36,7 @@ describe('Koomida user flows',()=>{
   const dialog=within(screen.getByRole('dialog'));const input=dialog.getByRole('textbox');await user.type(input,'quiero un snack');await user.click(dialog.getByRole('button',{name:'Elegir con Ollama'}));
   const results=within(await screen.findByRole('region',{name:'Resultados de Ollama'}));expect(results.getByText('Buenos días, avena')).toBeTruthy();expect(results.queryByText('Garbanzos al sol')).toBeNull();expect(results.getByText(/No registrados: Copos de avena/)).toBeTruthy();
   expect(results.getByRole('button',{name:'Ver receta: Buenos días, avena'}).classList.contains('full')).toBe(false);
-  expect(JSON.parse(mock.mock.calls[0][1].body).preferences).toBe('quiero un snack');expect(mock.mock.calls[0][1].headers['X-Koomida-Key']).toBe('test-key');
+  expect(JSON.parse(mock.mock.calls[0][1].body).preferences).toBe('quiero un snack');expect(mock.mock.calls[0][1].headers['X-Koomida-Key']).toBe('test-key');expect(mock.mock.calls[0][1].headers.Authorization).toBe('Bearer valid-test-token');
   await user.clear(input);await user.type(input,'un postre de chocolate');expect(screen.queryByRole('region',{name:'Resultados de Ollama'})).toBeNull();await user.click(dialog.getByRole('button',{name:'Elegir con Ollama'}));
   expect(await dialog.findByText(/No se pudieron generar opciones/)).toBeTruthy();expect(dialog.queryByText('Buenos días, avena')).toBeNull();
  });

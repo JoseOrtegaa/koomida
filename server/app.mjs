@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {createAuthenticator} from './auth.mjs';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { networkInterfaces } from 'node:os';
@@ -10,7 +11,7 @@ const mime = { '.html':'text/html; charset=utf-8','.js':'text/javascript; charse
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
 function equal(a,b) { const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y); }
 async function readBody(req) { let size=0,body='';for await(const chunk of req){size+=chunk.length;if(size>16384)throw Object.assign(new Error('La petición es demasiado grande.'),{status:413});body+=chunk;}try{return JSON.parse(body);}catch{throw Object.assign(new Error('JSON no válido.'),{status:400});} }
-export function createApp({ fetchImpl=fetch, ollamaUrl='http://127.0.0.1:11434', localKey='', host='127.0.0.1', root=resolve('dist'), limit=12, householdExcluded=[] }={}) {
+export function createApp({ fetchImpl=fetch, ollamaUrl='http://127.0.0.1:11434', localKey='', host='127.0.0.1', root=resolve('dist'), limit=12, householdExcluded=[], authenticate=createAuthenticator(process.env.VITE_SUPABASE_URL,process.env.VITE_SUPABASE_PUBLISHABLE_KEY) }={}) {
  if(!Array.isArray(householdExcluded)||householdExcluded.some(a=>!ALLERGENS.includes(a)))throw new Error('Restricciones del hogar no válidas.');
  const target=new URL(ollamaUrl);
  if(!['127.0.0.1','localhost','[::1]'].includes(target.hostname)||!['http:','https:'].includes(target.protocol)) throw new Error('OLLAMA_URL debe apuntar al propio PC (localhost).');
@@ -25,6 +26,8 @@ export function createApp({ fetchImpl=fetch, ollamaUrl='http://127.0.0.1:11434',
  };
  const models=async()=>{const data=await upstream('/api/tags');return(data.models||[]).filter(m=>typeof m.name==='string'&&!m.name.includes(':cloud')&&!m.remote_host&&!m.remote_model).map(m=>({name:m.name,size:m.size}));};
  return http.createServer(async(req,res)=>{
+  res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+  res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Frame-Options','DENY');
   try{
    const requestURL=new URL(req.url,'http://localhost');
@@ -39,6 +42,9 @@ export function createApp({ fetchImpl=fetch, ollamaUrl='http://127.0.0.1:11434',
       if(!same&&!dev)return json(res,403,{error:'Origen no permitido.'});
     }
     if(req.headers['sec-fetch-site']==='cross-site')return json(res,403,{error:'Origen no permitido.'});
+    const authorization=req.headers.authorization||'';
+    const bearer=/^Bearer ([^\s]{1,8192})$/.exec(authorization)?.[1];
+    if(!bearer||!await authenticate(bearer))return json(res,401,{error:'Inicia sesión de nuevo para usar las recomendaciones.'});
     if(localKey&&!equal(req.headers['x-koomida-key'],localKey))return json(res,401,{error:'Introduce la clave local de tu PC en Ajustes.'});
     if(path==='/api/health'&&req.method==='GET'){try{return json(res,200,{online:true,models:await models()});}catch{return json(res,503,{online:false,error:'No se puede conectar con Ollama. Abre Ollama en tu PC y vuelve a comprobar.'});}}
     if(path!=='/api/recipes'||req.method!=='POST')return json(res,404,{error:'Ruta no encontrada.'});
