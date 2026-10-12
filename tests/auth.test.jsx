@@ -69,16 +69,14 @@ describe('public and private boundaries',()=>{
   expect((await screen.findByRole('alert')).textContent).toContain('no coinciden');
   expect(state.signIn).toHaveBeenCalledWith({email:'account-a@example.invalid',password:'wrong-test-only'});
  });
- it('logs in, logs out and removes private UI and local pairing key',async()=>{
+ it('logs in, logs out and removes private UI',async()=>{
   const user=userEvent.setup();render(<App/>);await user.click(await screen.findByRole('button',{name:'Iniciar sesión'}));
   await user.type(screen.getByLabelText('Correo electrónico'),'account-a@example.invalid');await user.type(screen.getByLabelText('Contraseña'),'test-only-password');
   await user.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Iniciar sesión'}));
   await screen.findByText('¿Qué cocinamos');expect(state.load).toHaveBeenCalledOnce();
-  sessionStorage.setItem('koomida-local-key','test-key');
   await user.click(within(screen.getByRole('navigation',{name:'Principal'})).getByRole('button',{name:'Ajustes'}));
   await user.click(screen.getByRole('button',{name:'Cerrar sesión'}));
   await screen.findByRole('button',{name:'Iniciar sesión'});expect(screen.queryByRole('navigation',{name:'Principal'})).toBeNull();
-  expect(sessionStorage.getItem('koomida-local-key')).toBeNull();
  });
  it('fails closed for a cached session rejected by Auth',async()=>{
   state.session=session;state.getUser.mockResolvedValue({data:{user:null},error:new Error('expired')});
@@ -97,3 +95,4 @@ describe('public and private boundaries',()=>{
   await waitFor(()=>expect(screen.queryByRole('navigation',{name:'Principal'})).toBeNull());
  });
 });
+

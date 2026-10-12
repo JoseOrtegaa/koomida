@@ -1,70 +1,40 @@
 # Koomida
 
-Una despensa sencilla y un recetario para comer con lo que tienes. React + Supabase + Ollama local. Diseño original con ilustraciones SVG, adaptado a móvil y escritorio.
+Recetario web y despensa privada con React, Vite y Supabase. La web se puede alojar en GitHub Pages; no necesita un servidor en tu PC.
 
-## Arranque rápido (Windows, macOS o Linux)
+## Probar en local
 
-Requisitos: Node.js 22.12+ y Ollama actualizado. No hace falta Docker para probar la app.
+Requiere Node.js 22.12+.
 
 ```bash
 npm ci
 npm run setup
-npm run build
-npm start
+npm run dev
 ```
 
-`setup` crea `.env.local` sin sobreescribir configuraciones previas, incluye la URL y clave pública de Supabase y genera una clave local aleatoria. Puedes añadir `-- --exclude=ALÉRGENO` al comando para imponer una exclusión privada en el servidor; consulta `shared/safety.js` para los nombres admitidos. Muestra la URL del PC y la clave: en el iPhone, conectado a la misma Wi-Fi, abre esa URL en Safari. En **Ajustes → Ollama**, introduce la clave, pulsa **Guardar clave local** y después **Comprobar conexión**. Abre Ollama en el PC y selecciona `qwen3:4b` (preferido) o `qwen3:8b`.
+`setup` copia la configuración pública de `.env.example` a `.env.local` si todavía no existe. Nunca añadas claves secretas ni `service_role` al cliente. La clave `sb_publishable_...` es pública por diseño.
 
-Si Windows pregunta por el firewall, permite Node solo en redes privadas. El PC debe seguir encendido. **No abras puertos del router ni expongas Ollama a Internet**. Ollama sigue escuchando en localhost; solo Koomida escucha en la LAN. La conexión LAN de esta versión usa HTTP: úsala exclusivamente en una red de confianza; para publicación o redes no confiables, requiere HTTPS. No es todavía una PWA sin conexión.
+## GitHub Pages
 
-Sin iniciar sesión se muestra un recetario público. Despensa, favoritos, ajustes y recomendaciones requieren una cuenta. Sin configurar Supabase solo está disponible el recetario; no existe acceso alternativo mediante demo.
+El workflow `.github/workflows/pages.yml` ejecuta las pruebas, construye la web con base `/koomida/` y publica `dist/` al hacer push a `main`. En el repositorio, configura **Settings → Pages → Build and deployment → Source: GitHub Actions**. La URL prevista es `https://joseortegaa.github.io/koomida/`.
 
-## Conectar Supabase
+Supabase Auth debe permitir `https://joseortegaa.github.io/koomida/` en **Authentication → URL Configuration → Redirect URLs** para confirmaciones de cuentas nuevas; `emailRedirectTo` apunta a esa URL. El inicio de sesión con contraseña de cuentas ya confirmadas usa Supabase directamente. Si aún está configurada como Site URL `http://localhost:8787`, conviene cambiarla a la dirección publicada. Esto no altera los datos existentes.
 
-El proyecto en J.org (París) ya tiene las migraciones aplicadas. `setup` copia su URL y su clave **publishable** a `.env.local`. Esa clave es pública por diseño; las contraseñas de base de datos y claves secret/service_role no forman parte de la app ni del repositorio. No subas `.env.local` a Git.
+## Funciones
 
-Supabase Auth usa correo/contraseña y exige confirmar la cuenta por correo. La Site URL está configurada como `http://localhost:8787`: abre el enlace de confirmación en el PC donde se ejecuta Koomida, y luego inicia sesión desde el PC o iPhone. Si abres ese enlace en el iPhone, `localhost` apunta al teléfono y no abrirá Koomida; vuelve a la URL del PC tras confirmar. La entrega del correo depende del proveedor de email de Supabase; para uso más amplio necesitarás configurar SMTP y una URL HTTPS estable. La despensa real empieza vacía.
+- Catálogo público de ocho recetas de ejemplo, con pasos, ingredientes y fuente de precauciones alimentarias.
+- Login con Supabase Auth; despensa, favoritos y ajustes privados para cada cuenta mediante RLS.
+- Lista de compra por texto, cantidades aproximadas, fechas de caducidad, búsqueda y comparación de ingredientes con la despensa.
+- Confirmación antes de descontar stock al cocinar. Comprueba cantidades y envases antes de preparar la receta.
+- Exclusiones de alérgenos configurables por cuenta y navegador. Estos filtros no certifican ausencia de trazas ni reemplazan indicaciones clínicas. Las recetas no están validadas por un profesional sanitario.
 
-Cada cuenta tiene su propia despensa y favoritos, protegidos con RLS. No hay invitaciones ni hogares compartidos en este MVP. Puedes fijar exclusiones para todo el hogar con `npm run setup -- --exclude=ALERGENO` al crear la configuración. Se guardan en `.env.local`, no en Git. El servidor las impone aunque un cliente omita sus filtros. Si editas la configuración, mantén iguales `HOUSEHOLD_EXCLUDED_ALLERGENS` y `VITE_HOUSEHOLD_EXCLUDED_ALLERGENS` y recompila. Los filtros adicionales de la interfaz se guardan por cuenta en cada navegador; no se reutilizan al cambiar de usuario. No se almacenan historiales clínicos.
+Las preferencias de filtros guardadas en el navegador anterior no se transfieren automáticamente al dominio de Pages; vuelve a seleccionarlas en Ajustes. Los datos de despensa y favoritos sí están en Supabase.
 
-## Acceso y seguridad
-
-- Supabase Auth almacena hashes bcrypt de contraseñas y emite tokens JWT con renovación. No guardamos contraseñas en el navegador ni en tablas públicas. El formulario de registro y cambio exige 12 caracteres; la política global de Auth se administra en Supabase.
-- La sesión se conserva en `sessionStorage` durante la sesión del navegador. Al restaurarla se comprueba el usuario con Auth. Cerrar sesión oculta y desmonta la cocina, cancela la consulta activa y elimina la clave local de esa sesión.
-- La API local exige un Bearer token validado por Supabase Auth, además de la clave de emparejamiento del PC. Sin configurar Auth falla cerrada. Un JWT manipulado o caducado no permite llamar a Ollama.
-- RLS limita despensa y favoritos al propietario, también al editar o borrar y al descontar ingredientes. Ocultar botones no sustituye estas reglas. No se ha desplegado ningún endpoint administrativo.
-- En Ajustes → Tu cuenta puedes cambiar la contraseña comprobando la anterior. Se revocan las renovaciones de las otras sesiones; los JWT ya emitidos pueden seguir siendo válidos hasta su caducidad.
-- La cuenta temporal se provisiona fuera del código y sus datos se cargan solo en su despensa privada. Ni credenciales ni inventario personal se incluyen en Git. Su dirección es un identificador de prueba sin buzón, por lo que no admite recuperación por correo.
-- **Límite del entorno local:** la app servida por IP de la LAN usa HTTP. Auth y la base de datos usan HTTPS, pero los tokens enviados al puente local viajan por esa LAN. Para usar cuentas fuera de una red privada de confianza o publicar la app hay que servir también Koomida por HTTPS. Estos cambios no convierten HTTP en un transporte cifrado.
-
-## Qué hace
-
-- Despensa: alta, edición, eliminación, cantidades aproximadas y caducidad opcional.
-- Compra por texto: pega `ingrediente;cantidad;unidad`, revisa y confirma hasta 40 líneas. No hay OCR de fotografías.
-- Ocho recetas de prueba para dos personas, búsqueda, filtros, coincidencia de ingredientes y favoritos.
-- «La he preparado»: confirmación y descuento aproximado, atómico en Supabase. Respeta unidades compatibles, prioriza lotes con fecha próxima y no descuenta alimentos con fecha vencida.
-- Ollama interpreta la petición y genera de una a dos recetas nuevas. Los ingredientes pedidos son obligatorios aunque no figuren en la despensa (incluye correcciones como «carne molina» → carne picada). Aprovecha el inventario para reducir compras; también funciona con despensa vacía si escribes una petición. Muestra ingredientes no registrados para comprobar o comprar. No busca en Internet. Las recetas siguen disponibles aunque Ollama esté apagado.
-
-## Propuestas de IA y precauciones de preparación
-
-El recetario fijo sigue disponible sin IA. Las propuestas nuevas de Ollama se identifican como **propuestas IA sin revisión individual**: no son recetas clínicamente validadas ni certifican seguridad o ausencia de alérgenos/trazas. Comprueba ingredientes, cantidades, etiquetas y preparación antes de cocinar; sigue las indicaciones del profesional que lleva el embarazo.
-
-La API usa dos respuestas estructuradas: interpretación (tipo de comida, ingredientes pedidos y evitados) y generación. Valida cantidades/unidades/pasos, exige los ingredientes pedidos, respeta las exclusiones del hogar y rechaza formatos incompletos. Un intento de corrección automática puede resolver una propuesta inválida; no se devuelve una receta del catálogo como sustituto silencioso. Los filtros adicionales son una ayuda, nunca una garantía de seguridad alimentaria. Alérgenos declarados por el modelo y detección adicional son orientativos; pueden ser incompletos.
-
-El prompt aplica pautas generales consultadas el 12/10/2026: lácteos pasteurizados, lavar frutas/verduras, separar utensilios crudos, cocción completa (carne/pescado a más de 70 °C durante al menos 2 minutos en el centro; huevo cuajado), evitar alcohol y preparaciones crudas de origen animal. No garantiza que cada receta cumpla esas pautas: requiere revisión humana. Fuentes: [AESAN, alimentación durante el embarazo](https://www.aesan.gob.es/AECOSAN/docs/documentos/publicaciones/seguridad_alimentaria/embarazadas.pdf), [AESAN, prevención de listeriosis](https://www.aesan.gob.es/AECOSAN/docs/documentos/publicaciones/seguridad_alimentaria/Folleto_LISTERIOSIS.pdf). No se realizan búsquedas externas durante la generación ni se actualizan alertas automáticamente.
-
-Las propuestas generadas quedan en la sesión de consulta; se pueden abrir y usar «La he preparado» para descontar únicamente stock registrado. No se añaden aún a favoritos ni a un recetario persistente.
-
-## Desarrollo y verificación
+## Verificación
 
 ```bash
-npm run dev    # interfaz en localhost:5173 y API en :8787
-npm test       # UI con jsdom, dominio, API con Ollama simulado y SQL con PGlite
-npm run build  # producción en dist/
+npm test
+npm run build
 ```
 
-`src/`: interfaz, catálogo y adaptador Supabase. El adaptador demo solo se conserva como doble de pruebas, sin ruta de acceso en la app. `shared/`: reglas de inventario, alérgenos e identificadores. `server/`: servidor Node y puente a Ollama. `supabase/migrations/`: tablas y permisos. No hay frameworks de backend adicionales.
-
-La IA tiene un máximo de 90 s de espera, una solicitud simultánea y 12 intentos por hora por proceso. Qwen usa `think:false`, contexto de 4096 tokens y hasta 220 tokens para interpretar y 1600 para generar. No se descarga ni cambia ningún modelo automáticamente. Los límites se reinician al reiniciar el servidor: son protección doméstica, no una solución de servicio público.
-
-La CI ejecuta pruebas y build, sin credenciales. La suite SQL comprueba aislamiento entre cuentas, rechazo de acceso anónimo, descuento y rollback. La suite API verifica filtros y validación de propuestas generadas con dobles de prueba, no con tu Ollama real. La velocidad real y Safari/iPhone requieren validación en tu PC. Las pruebas de interfaz cubren también portada pública, login, logout, sesión rechazada, cambio de cuenta y contraseña. Se ha verificado el login real y la lectura/escritura de la cuenta temporal contra Supabase. La instalación de Chromium falló en este entorno; no se ha completado una comprobación visual ni una prueba en Safari/iPhone.
+La aplicación ya no incluye generación de recetas, API local ni dependencia de Ollama. Más adelante se puede ampliar el catálogo sin inventar recetas durante el uso.
