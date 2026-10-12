@@ -58,6 +58,17 @@ describe('public and private boundaries',()=>{
   await user.click(screen.getByRole('button',{name:'Entrar para cocinar con mi despensa'}));
   expect(screen.getByLabelText('Contraseña')).toBeTruthy();
  });
+ it('explains rejected credentials and reveals the entered password on request',async()=>{
+  state.signIn.mockResolvedValue({data:{session:null},error:{code:'invalid_credentials',status:400}});
+  const user=userEvent.setup();render(<App/>);await user.click(await screen.findByRole('button',{name:'Iniciar sesión'}));
+  await user.type(screen.getByLabelText('Correo electrónico'),'account-a@example.invalid');
+  await user.type(screen.getByLabelText('Contraseña'),'wrong-test-only');
+  await user.click(screen.getByRole('button',{name:'Mostrar contraseña'}));
+  expect(screen.getByLabelText('Contraseña').type).toBe('text');
+  await user.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Iniciar sesión'}));
+  expect((await screen.findByRole('alert')).textContent).toContain('no coinciden');
+  expect(state.signIn).toHaveBeenCalledWith({email:'account-a@example.invalid',password:'wrong-test-only'});
+ });
  it('logs in, logs out and removes private UI and local pairing key',async()=>{
   const user=userEvent.setup();render(<App/>);await user.click(await screen.findByRole('button',{name:'Iniciar sesión'}));
   await user.type(screen.getByLabelText('Correo electrónico'),'account-a@example.invalid');await user.type(screen.getByLabelText('Contraseña'),'test-only-password');
