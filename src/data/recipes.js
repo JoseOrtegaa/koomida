@@ -15,4 +15,4 @@ export function demoPantry() {
 }
 
 const allergens = { 'demo-pasta':['gluten','leche'], 'demo-avena':['gluten','leche'], 'demo-tortilla':['huevo'] };
-recipes.forEach(r=>{r.allergens=allergens[r.id]||[];r.reviewVersion='2026-10-11';});
+recipes.forEach(r=>{r.mealTypes=r.id==='demo-avena'?['desayuno','snack']:['comida','cena'];r.allergens=allergens[r.id]||[];r.reviewVersion='2026-10-11';});
