@@ -7,3 +7,8 @@
 
 .public-shell{max-width:1250px;margin:0 auto;padding:0 28px}.public-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px 0 30px}.public-header .brand{text-decoration:none}.public-main{margin:0;width:100%;padding:0}.public-main .hero{margin-bottom:44px}.public-main .hero h1{font-size:clamp(38px,4.8vw,64px)}.public-main .public-hint{margin:18px 0;font-size:12px}.public-search{margin-bottom:24px}.public-main footer{padding-bottom:26px}@media(max-width:520px){.public-shell{padding:0 18px}.public-header{padding:18px 0 24px}.public-header .brand{font-size:29px}.public-header .brand img{width:30px;height:30px}.public-header .button{padding:11px 13px}.public-main .hero-art{margin-top:0}.public-main .floating-note{bottom:24px}.public-main .public-hint{margin-bottom:5px}}
 
+
+/* Installed mobile app: native-feeling taps and scrolling, without double-tap zoom. */
+html,body{overscroll-behavior-y:none}
+button,a,.recipe-card,.mobile-nav{-webkit-touch-callout:none;touch-action:manipulation}
+button,.mobile-nav{-webkit-user-select:none;user-select:none}
