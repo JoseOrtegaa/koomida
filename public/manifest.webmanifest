@@ -1,0 +1,10 @@
+{
+  "name": "Koomida",
+  "short_name": "Koomida",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf9f5",
+  "theme_color": "#285443",
+  "icons": [{ "src": "./art/mark.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

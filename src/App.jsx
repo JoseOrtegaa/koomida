@@ -5,6 +5,7 @@ import Modal from './components/Modal.jsx';
 import {ItemForm,PurchaseForm,AuthForm,PasswordForm} from './components/Forms.jsx';
 import {recipes} from './data/recipes.js';
 import {cloudStore,supabase} from './lib/store.js';
+import {requestPersistentStorage} from './lib/authStorage.js';
 import {CATEGORIES,recipeMatch,ingredientStatus,rankRecipes,expiry,deductionPreview} from '../shared/domain.js';
 import {ALLERGENS,parseExclusions,eligibleRecipes,safetyNotes,SAFETY_SOURCE,AESAN_SOURCE} from '../shared/safety.js';
 const householdExcluded=parseExclusions(import.meta.env.VITE_HOUSEHOLD_EXCLUDED_ALLERGENS||'');
@@ -56,7 +57,8 @@ function PublicHome({onLogin}){
  return <div className="public-shell"><header className="public-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="Koomida, inicio"><img src={`${import.meta.env.BASE_URL}art/mark.svg`} alt=""/><span>koomida<span className="brand-dot">.</span></span></a><button className="button secondary" onClick={onLogin}>Iniciar sesión</button></header><main className="public-main"><section className="hero"><div className="hero-copy"><span className="eyebrow">LO BUENO EMPIEZA EN CASA</span><h1>Comer mejor,<br/><em>sin complicarte.</em></h1><p>Recetas sencillas para cada día. Entra en tu cocina y descubre qué preparar con lo que ya tienes.</p><button className="button" onClick={onLogin}>Entrar en mi cocina<Icon name="arrow"/></button><p className="public-hint">Tu despensa, tus favoritos y tus ideas, en un espacio privado.</p></div><div className="hero-art"><BowlArt/><span className="floating-note">Un poco de aquí. Algo rico para hoy.</span></div></section><section aria-labelledby="public-recipes"><div className="section-heading"><div><span className="eyebrow">INSPIRACIÓN PARA TU MESA</span><h2 id="public-recipes">Ideas para comer mejor</h2></div></div><label className="search public-search"><Icon name="search"/><input aria-label="Buscar receta" placeholder="Busca una receta o un ingrediente…" value={search} onChange={e=>setSearch(e.target.value)}/></label><div className="recipe-grid">{list.map(r=><RecipeCard key={r.id} recipe={r} pantry={[]} onOpen={setRecipe} publicView/>)}</div>{!list.length&&<p className="notice">No hay coincidencias. Prueba otro ingrediente.</p>}</section><footer>koomida.<small>Hecho para disfrutar lo cotidiano.</small></footer></main>{recipe&&<RecipeDetail recipe={recipe} pantry={[]} publicView onClose={()=>setRecipe(null)} onLogin={()=>{setRecipe(null);onLogin();}}/>}</div>;
 }
 export default function App(){
- const [session,setSession]=useState(null),[ready,setReady]=useState(!supabase),[authOpen,setAuthOpen]=useState(false),[error,setError]=useState('');
+ const [session,setSession]=useState(null),[ready,setReady]=useState(!supabase),[authOpen,setAuthOpen]=useState(false),[error,setError]=useState(''),[restoreAttempt,setRestoreAttempt]=useState(0);
+ useEffect(()=>{if(supabase)void requestPersistentStorage();},[]);
  useEffect(()=>{
   if(!supabase)return;
   let alive=true,revision=0;
@@ -65,17 +67,18 @@ export default function App(){
   supabase.auth.getSession().then(async({data,error})=>{
    if(error)throw error;
    const restored=data?.session;
-   if(restored){const result=await supabase.auth.getUser();if(result.error||!result.data.user)throw new Error('La sesión ha caducado. Inicia sesión de nuevo.');}
+   if(restored){const result=await supabase.auth.getUser();if(result.error||!result.data.user)throw new Error('No pudimos verificar tu sesión. Comprueba la conexión y reintenta.');}
    if(alive&&revision===initialRevision){setSession(restored||null);setReady(true);}
-  }).catch(()=>{if(alive&&revision===initialRevision){setSession(null);setReady(true);setError('No se pudo recuperar la sesión. Vuelve a iniciar sesión.');}});
+  }).catch(()=>{if(alive&&revision===initialRevision){setSession(null);setReady(true);setError('No pudimos recuperar tu sesión. Comprueba la conexión y reintenta.');}});
   const {data:{subscription}}=supabase.auth.onAuthStateChange((event,s)=>{
    if(!alive||event==='INITIAL_SESSION')return;
    revision++;setSession(s);setReady(true);setAuthOpen(false);setError('');
+   if(s)void requestPersistentStorage();
   });
   return()=>{alive=false;subscription.unsubscribe();};
- },[]);
+ },[restoreAttempt]);
  if(!ready)return <div className="empty"><h1>koomida.</h1><p>Abriendo tu cocina…</p></div>;
  const logout=async()=>{const {error}=await supabase.auth.signOut();if(error){setError('No se pudo cerrar la sesión. Comprueba la conexión y reintenta.');return;}setSession(null);};
- return <>{error&&<div role="alert" className="error">{error}</div>}{session?<Kitchen key={session.user.id} session={session} onLogout={logout}/>:<PublicHome onLogin={()=>setAuthOpen(true)}/>}{authOpen&&!session&&<AuthForm onClose={()=>setAuthOpen(false)}/>}</>;
+ return <>{error&&<div role="alert" className="error">{error} {!session&&<button onClick={()=>{setError('');setReady(false);setRestoreAttempt(n=>n+1);}}>Reintentar</button>}</div>}{session?<Kitchen key={session.user.id} session={session} onLogout={logout}/>:<PublicHome onLogin={()=>setAuthOpen(true)}/>}{authOpen&&!session&&<AuthForm onClose={()=>setAuthOpen(false)}/>}</>;
 }
 

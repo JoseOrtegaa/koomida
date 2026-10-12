@@ -24,7 +24,7 @@ Supabase Auth debe permitir `https://joseortegaa.github.io/koomida/` en **Authen
 
 - Catálogo público de ocho recetas de ejemplo, con pasos, ingredientes y fuente de precauciones alimentarias.
 - Login con Supabase Auth; despensa, favoritos y ajustes privados para cada cuenta mediante RLS.
-- La sesión se conserva en este navegador al cerrar y reabrir la app. Supabase renueva el token automáticamente; cerrar sesión la elimina. Un navegador privado o el borrado de datos del sitio pueden requerir iniciar sesión otra vez.
+- La sesión se conserva en la web app de este dispositivo mediante almacenamiento local con respaldo en IndexedDB. Supabase renueva el token automáticamente y cerrar sesión borra ambas copias. En iOS, abre siempre desde el mismo icono de inicio: su almacenamiento es distinto al de Safari. Borrar los datos del sitio o usar navegación privada exige volver a iniciar sesión.
 - Lista de compra por texto, cantidades aproximadas, fechas de caducidad, búsqueda y comparación de ingredientes con la despensa.
 - Confirmación antes de descontar stock al cocinar. Comprueba cantidades y envases antes de preparar la receta.
 - Exclusiones de alérgenos configurables por cuenta y navegador. Estos filtros no certifican ausencia de trazas ni reemplazan indicaciones clínicas. Las recetas no están validadas por un profesional sanitario.
