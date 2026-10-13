@@ -30,7 +30,7 @@ describe('public and private boundaries',()=>{
   const cached={...session,user:{...session.user,user_metadata:{display_name:'Ana'}}};
   const verified={...session.user,user_metadata:{full_name:'Ana García'}};
   state.session=cached;state.getUser.mockResolvedValue({data:{user:verified}});
-  render(<App/>);await screen.findByText('¿Qué cocinamos');
+  render(<App/>);await screen.findByRole('heading',{name:/Bienvenido a tu cocina/i});
   const header=document.querySelector('.topbar');
   expect(header.textContent).toContain('Ana García');
   await act(async()=>state.callback('SIGNED_IN',cached));
@@ -39,7 +39,7 @@ describe('public and private boundaries',()=>{
   expect(header.textContent).toContain('Ana García');
  });
  it('refreshes the current profile on foreground without accepting a signed-out response',async()=>{
-  state.session=session;render(<App/>);await screen.findByText('¿Qué cocinamos');
+  state.session=session;render(<App/>);await screen.findByRole('heading',{name:/Bienvenido a tu cocina/i});
   state.getUser.mockResolvedValue({data:{user:{...session.user,user_metadata:{full_name:'Ana García'}}}});
   await act(async()=>document.dispatchEvent(new Event('visibilitychange')));
   expect(document.querySelector('.topbar').textContent).toContain('Ana García');
@@ -97,7 +97,7 @@ describe('public and private boundaries',()=>{
   const user=userEvent.setup();render(<App/>);await user.click(await screen.findByRole('button',{name:'Iniciar sesión'}));
   await user.type(screen.getByLabelText('Correo electrónico'),'account-a@example.invalid');await user.type(screen.getByLabelText('Contraseña'),'test-only-password');
   await user.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Iniciar sesión'}));
-  await screen.findByText('¿Qué cocinamos');expect(state.load).toHaveBeenCalledOnce();
+  await screen.findByRole('heading',{name:/Bienvenido a tu cocina/i});expect(state.load).toHaveBeenCalledOnce();
   await user.click(within(screen.getByRole('navigation',{name:'Principal'})).getByRole('button',{name:'Ajustes'}));
   await user.click(screen.getByRole('button',{name:'Cerrar sesión'}));
   await screen.findByRole('button',{name:'Iniciar sesión'});expect(screen.queryByRole('navigation',{name:'Principal'})).toBeNull();
@@ -108,11 +108,11 @@ describe('public and private boundaries',()=>{
  });
  it('separates account preferences and clears private content when auth expires',async()=>{
   state.session=session;localStorage.setItem('koomida-preferences:account-a',JSON.stringify({excluded:['gluten'],model:'qwen3:4b'}));
-  const user=userEvent.setup();render(<App/>);await screen.findByText('¿Qué cocinamos');
+  const user=userEvent.setup();render(<App/>);await screen.findByRole('heading',{name:/Bienvenido a tu cocina/i});
   await user.click(within(screen.getByRole('navigation',{name:'Principal'})).getByRole('button',{name:'Recetas'}));
   expect(screen.queryByRole('button',{name:'Pasta de la huerta',exact:true})).toBeNull();
   const next={user:{id:'account-b',email:'account-b@example.invalid'},access_token:'token-b'};
-  await act(async()=>state.callback('SIGNED_IN',next));await screen.findByText('¿Qué cocinamos');
+  await act(async()=>state.callback('SIGNED_IN',next));await screen.findByRole('heading',{name:/Bienvenido a tu cocina/i});
   await user.click(within(screen.getByRole('navigation',{name:'Principal'})).getByRole('button',{name:'Recetas'}));
   expect(screen.getByRole('button',{name:'Pasta de la huerta',exact:true})).toBeTruthy();
   await act(async()=>state.callback('SIGNED_OUT',null));
