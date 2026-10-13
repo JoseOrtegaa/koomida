@@ -12,3 +12,13 @@
 html,body{overscroll-behavior-y:none}
 button,a,.recipe-card,.mobile-nav{-webkit-touch-callout:none;touch-action:manipulation}
 button,.mobile-nav{-webkit-user-select:none;user-select:none}
+
+/* Keep the header below the iPhone status area and its top fade. */
+@media(max-width:800px){
+ .app-shell main{padding-top:calc(env(safe-area-inset-top,0px) + 16px)}
+ .public-header{padding-top:calc(env(safe-area-inset-top,0px) + 34px)}
+ .topbar .breadcrumb{min-width:0}
+ .top-actions{min-width:0;max-width:55%;flex-shrink:0}
+ .account-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+ .status-dot{flex-shrink:0}
+}
