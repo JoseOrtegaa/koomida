@@ -15,10 +15,32 @@ button,.mobile-nav{-webkit-user-select:none;user-select:none}
 
 /* Keep the header below the iPhone status area and its top fade. */
 @media(max-width:800px){
- .app-shell main{padding-top:calc(env(safe-area-inset-top,0px) + 16px)}
- .public-header{padding-top:calc(env(safe-area-inset-top,0px) + 34px)}
+ .app-shell main{padding-top:env(safe-area-inset-top,0px)}
+ .public-header{padding-top:calc(env(safe-area-inset-top,0px) + 12px)}
  .topbar .breadcrumb{min-width:0}
  .top-actions{min-width:0;max-width:55%;flex-shrink:0}
  .account-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
  .status-dot{flex-shrink:0}
+}
+
+/* Mobile home: tighter sections and a compact feature card. */
+@media(max-width:520px){
+ .topbar{height:52px;margin-bottom:18px}
+ .welcome{margin-bottom:18px}
+ .welcome .eyebrow{margin-bottom:12px}
+ .welcome h1{font-size:30px;margin-bottom:10px}
+ .welcome p{margin-top:0}
+ .hero{margin-bottom:18px}
+ .hero-copy{padding:22px 22px 0}
+ .hero-copy .eyebrow{margin-bottom:12px}
+ .hero-copy h2{font-size:30px;line-height:1.15;margin-bottom:14px;letter-spacing:-.8px}
+ .hero-copy h2 br{display:none}
+ .hero-copy p{max-width:100%;margin-bottom:16px;line-height:1.6}
+ .hero .button{padding:12px 17px;min-height:44px}
+ .hero-art{height:155px;margin-top:0}
+ .hero-art>svg{height:180px;max-width:250px;transform:translate(10px,-3px)}
+ .handwritten{top:18px;left:22px;font-size:14px}
+ .floating-note{bottom:40px;right:12px}
+ .hero-foot{bottom:14px;left:22px}
+ .quick-stats{margin-bottom:24px}
 }

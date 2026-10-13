@@ -73,10 +73,21 @@ export default function App(){
   }).catch(()=>{if(alive&&revision===initialRevision){setSession(null);setReady(true);setError('No pudimos recuperar tu sesión. Comprueba la conexión y reintenta.');}});
   const {data:{subscription}}=supabase.auth.onAuthStateChange((event,s)=>{
    if(!alive||event==='INITIAL_SESSION')return;
-   revision++;setSession(s);setReady(true);setAuthOpen(false);setError('');
+   revision++;setSession(previous=>s&&previous?.user.id===s.user.id&&event!=='USER_UPDATED'?{...s,user:previous.user}:s);setReady(true);setAuthOpen(false);setError('');
    if(s)void requestPersistentStorage();
   });
-  return()=>{alive=false;subscription.unsubscribe();};
+  // Recheck profile on foreground; cached token events can carry older names.
+  let refreshing=false;
+  const refreshProfile=async()=>{
+   if(document.visibilityState==='hidden'||refreshing)return;
+   refreshing=true;const startedRevision=revision;
+   try{
+    const {data,error}=await supabase.auth.getUser();
+    if(alive&&revision===startedRevision&&!error&&data?.user)setSession(previous=>previous?.user.id===data.user.id?{...previous,user:data.user}:previous);
+   }catch{/* A network interruption must not erase the existing session. */}finally{refreshing=false;}
+  };
+  document.addEventListener('visibilitychange',refreshProfile);
+  return()=>{alive=false;subscription.unsubscribe();document.removeEventListener('visibilitychange',refreshProfile);};
  },[restoreAttempt]);
  if(!ready)return <div className="empty"><h1>koomida.</h1><p>Abriendo tu cocina…</p></div>;
  const logout=async()=>{const {error}=await supabase.auth.signOut();if(error){setError('No se pudo cerrar la sesión. Comprueba la conexión y reintenta.');return;}setSession(null);};

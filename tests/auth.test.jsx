@@ -26,6 +26,30 @@ beforeEach(()=>{
  state.signIn.mockImplementation(async()=>{state.session=session;state.callback('SIGNED_IN',session);return {data:{session}};});
 });
 describe('public and private boundaries',()=>{
+ it('keeps the verified account name when resume delivers an older session',async()=>{
+  const cached={...session,user:{...session.user,user_metadata:{display_name:'Ana'}}};
+  const verified={...session.user,user_metadata:{full_name:'Ana García'}};
+  state.session=cached;state.getUser.mockResolvedValue({data:{user:verified}});
+  render(<App/>);await screen.findByText('¿Qué cocinamos');
+  const header=document.querySelector('.topbar');
+  expect(header.textContent).toContain('Ana García');
+  await act(async()=>state.callback('SIGNED_IN',cached));
+  expect(header.textContent).toContain('Ana García');
+  await act(async()=>state.callback('TOKEN_REFRESHED',{...cached,access_token:'new-token'}));
+  expect(header.textContent).toContain('Ana García');
+ });
+ it('refreshes the current profile on foreground without accepting a signed-out response',async()=>{
+  state.session=session;render(<App/>);await screen.findByText('¿Qué cocinamos');
+  state.getUser.mockResolvedValue({data:{user:{...session.user,user_metadata:{full_name:'Ana García'}}}});
+  await act(async()=>document.dispatchEvent(new Event('visibilitychange')));
+  expect(document.querySelector('.topbar').textContent).toContain('Ana García');
+  let resolve;state.getUser.mockImplementation(()=>new Promise(r=>{resolve=r;}));
+  await act(async()=>document.dispatchEvent(new Event('visibilitychange')));
+  await act(async()=>state.callback('SIGNED_OUT',null));
+  await act(async()=>resolve({data:{user:session.user}}));
+  expect(screen.queryByRole('navigation',{name:'Principal'})).toBeNull();
+ });
+
  it('requires the current password before updating and revokes other refresh sessions',async()=>{
   state.signIn.mockResolvedValue({data:{session},error:null});
   const user=userEvent.setup();render(<PasswordForm onClose={()=>{}}/>);
