@@ -18,6 +18,9 @@ describe('Koomida user flows',()=>{
   expect(document.querySelector('.home-dashboard .recipe-grid')).toBeNull();
   await user.click(screen.getByRole('button',{name:'Ver esta receta'}));
   expect(screen.getByRole('dialog')).toBeTruthy();
+  await user.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Cerrar'}));
+  await user.click(screen.getByRole('button',{name:/para revisar pronto/i}));
+  expect(screen.getByRole('combobox',{name:'Filtrar despensa'}).value).toBe('Próximos');
  });
  it('creates, edits and deletes an ingredient; persists across reload',async()=>{
   const user=userEvent.setup();let view=render(<App/>);await screen.findByRole('heading',{name:/Bienvenido a tu cocina/i});await go(user,'Despensa');await user.click(screen.getByRole('button',{name:'Ingrediente',exact:true}));
