@@ -15,7 +15,7 @@ button,.mobile-nav{-webkit-user-select:none;user-select:none}
 
 /* Keep the header below the iPhone status area and its top fade. */
 @media(max-width:800px){
- .app-shell main{padding-top:env(safe-area-inset-top,0px)}
+ .app-shell main{padding-top:calc(env(safe-area-inset-top,0px) + 8px)}
  .public-header{padding-top:calc(env(safe-area-inset-top,0px) + 12px)}
  .topbar .breadcrumb{min-width:0}
  .top-actions{min-width:0;max-width:55%;flex-shrink:0}
